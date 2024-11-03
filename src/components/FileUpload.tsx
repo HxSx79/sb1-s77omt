@@ -17,7 +17,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload }) => {
 
   return (
     <div className="flex items-center gap-2">
-      <label className="flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+      <label 
+        className="flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+        role="button"
+        tabIndex={0}
+        onKeyPress={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            fileInputRef.current?.click();
+          }
+        }}
+      >
         <Upload className="w-5 h-5 mr-2" />
         <span className="text-sm font-medium">Upload Excel</span>
         <input

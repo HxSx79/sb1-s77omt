@@ -36,7 +36,33 @@ export const CameraFeed: React.FC = () => {
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    const initCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 480 },
+            height: { ideal: 360 },
+            aspectRatio: 4/3
+          }
+        });
+        
+        if (mounted && videoRef.current) {
+          videoRef.current.srcObject = stream;
+          setIsStreamActive(true);
+          setError('');
+        }
+      } catch (err) {
+        if (mounted) {
+          setError('Camera access denied or not available');
+          setIsStreamActive(false);
+        }
+      }
+    };
+
     return () => {
+      mounted = false;
       stopCamera();
     };
   }, []);

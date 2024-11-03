@@ -36,25 +36,16 @@ const getSmileyPath = (scrapRate: string) => {
 const App: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
-  const [line1Data, setLine1Data] = useState<LineStatus>({
-    partNumber: '-',
-    partName: '-',
-    totalQuantity: '0',
-    partsPerHour: '0',
-    totalScrap: '0',
-    scrapRate: '0.0'
-  });
-  const [line2Data, setLine2Data] = useState<LineStatus>({
-    partNumber: '-',
-    partName: '-',
-    totalQuantity: '0',
-    partsPerHour: '0',
-    totalScrap: '0',
-    scrapRate: '0.0'
-  });
 
-  const [lineData1, setLineData1] = useState<Array<{ time: string; value: number | null }>>([]);
-  const [lineData2, setLineData2] = useState<Array<{ time: string; value: number | null }>>([]);
+  interface LineState {
+    status: LineStatus;
+    graphData: GraphData[];
+  }
+
+  const [lines, setLines] = useState<Record<string, LineState>>({
+    line1: { status: initialLineStatus, graphData: [] },
+    line2: { status: initialLineStatus, graphData: [] }
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -82,45 +73,58 @@ const App: React.FC = () => {
   };
 
   const handleFileUpload = (rawData: any[]) => {
-    const formattedData = processProductionData(rawData);
-    setLastRefreshTime(new Date());
-
-    const line1Entries = formattedData.filter(entry => entry.line === '1');
-    if (line1Entries.length > 0) {
-      const lastLine1Entry = line1Entries[line1Entries.length - 1];
-      setLine1Data({
-        partNumber: lastLine1Entry.partNumber || '-',
-        partName: lastLine1Entry.partName || '-',
-        totalQuantity: lastLine1Entry.totalQuantity || '0',
-        partsPerHour: Math.ceil(lastLine1Entry.partsPerHour).toString(),
-        totalScrap: lastLine1Entry.totalScrap || '0',
-        scrapRate: lastLine1Entry.scrapRate || '0.0'
-      });
-
-      const line1GraphData = processLineData(line1Entries);
-      setLineData1(line1GraphData);
+    if (!Array.isArray(rawData) || !rawData.length) {
+      console.error('Invalid data format');
+      return;
     }
 
-    const line2Entries = formattedData.filter(entry => entry.line === '2');
-    if (line2Entries.length > 0) {
-      const lastLine2Entry = line2Entries[line2Entries.length - 1];
-      setLine2Data({
-        partNumber: lastLine2Entry.partNumber || '-',
-        partName: lastLine2Entry.partName || '-',
-        totalQuantity: lastLine2Entry.totalQuantity || '0',
-        partsPerHour: Math.ceil(lastLine2Entry.partsPerHour).toString(),
-        totalScrap: lastLine2Entry.totalScrap || '0',
-        scrapRate: lastLine2Entry.scrapRate || '0.0'
-      });
+    try {
+      const formattedData = processProductionData(rawData);
+      setLastRefreshTime(new Date());
 
-      const line2GraphData = processLineData(line2Entries);
-      setLineData2(line2GraphData);
+      const line1Entries = formattedData.filter(entry => entry.line === '1');
+      if (line1Entries.length > 0) {
+        const lastLine1Entry = line1Entries[line1Entries.length - 1];
+        setLines({
+          line1: {
+            status: {
+              partNumber: lastLine1Entry.partNumber || '-',
+              partName: lastLine1Entry.partName || '-',
+              totalQuantity: lastLine1Entry.totalQuantity || '0',
+              partsPerHour: Math.ceil(lastLine1Entry.partsPerHour).toString(),
+              totalScrap: lastLine1Entry.totalScrap || '0',
+              scrapRate: lastLine1Entry.scrapRate || '0.0'
+            },
+            graphData: processLineData(line1Entries)
+          }
+        });
+      }
+
+      const line2Entries = formattedData.filter(entry => entry.line === '2');
+      if (line2Entries.length > 0) {
+        const lastLine2Entry = line2Entries[line2Entries.length - 1];
+        setLines({
+          line2: {
+            status: {
+              partNumber: lastLine2Entry.partNumber || '-',
+              partName: lastLine2Entry.partName || '-',
+              totalQuantity: lastLine2Entry.totalQuantity || '0',
+              partsPerHour: Math.ceil(lastLine2Entry.partsPerHour).toString(),
+              totalScrap: lastLine2Entry.totalScrap || '0',
+              scrapRate: lastLine2Entry.scrapRate || '0.0'
+            },
+            graphData: processLineData(line2Entries)
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error processing data:', error);
     }
   };
 
-  const totalQuantity = parseInt(line1Data.totalQuantity) + parseInt(line2Data.totalQuantity);
-  const totalScrap = parseInt(line1Data.totalScrap) + parseInt(line2Data.totalScrap);
-  const avgScrapRate = ((parseFloat(line1Data.scrapRate) + parseFloat(line2Data.scrapRate)) / 2).toFixed(1);
+  const totalQuantity = parseInt(lines.line1.status.totalQuantity) + parseInt(lines.line2.status.totalQuantity);
+  const totalScrap = parseInt(lines.line1.status.totalScrap) + parseInt(lines.line2.status.totalScrap);
+  const avgScrapRate = ((parseFloat(lines.line1.status.scrapRate) + parseFloat(lines.line2.status.scrapRate)) / 2).toFixed(1);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -156,33 +160,33 @@ const App: React.FC = () => {
                 <div className="space-y-1">
                   <div className="text-sm">
                     <p className="text-black text-xs">Part Number</p>
-                    <p className="font-medium text-black">{line1Data.partNumber}</p>
+                    <p className="font-medium text-black">{lines.line1.status.partNumber}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Part Name</p>
-                    <p className="font-medium text-black">{line1Data.partName}</p>
+                    <p className="font-medium text-black">{lines.line1.status.partName}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Total Quantity / Shift</p>
-                    <p className="font-medium text-black">{line1Data.totalQuantity}</p>
+                    <p className="font-medium text-black">{lines.line1.status.totalQuantity}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Parts / Hour</p>
-                    <p className="font-medium text-black">{line1Data.partsPerHour}</p>
+                    <p className="font-medium text-black">{lines.line1.status.partsPerHour}</p>
                   </div>
                 </div>
               </div>
 
-              <div className={`rounded-lg shadow-sm p-2 ${getScrapRateColor(line1Data.scrapRate)}`}>
+              <div className={`rounded-lg shadow-sm p-2 ${getScrapRateColor(lines.line1.status.scrapRate)}`}>
                 <h2 className="text-sm font-semibold text-black mb-1">Scrap Line 1</h2>
                 <div className="space-y-1">
                   <div className="text-sm">
                     <p className="text-black text-xs">Total Scrap</p>
-                    <p className="font-medium text-black">{line1Data.totalScrap}</p>
+                    <p className="font-medium text-black">{lines.line1.status.totalScrap}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Scrap Rate</p>
-                    <p className="font-medium text-black">{line1Data.scrapRate}%</p>
+                    <p className="font-medium text-black">{lines.line1.status.scrapRate}%</p>
                   </div>
                 </div>
               </div>
@@ -194,33 +198,33 @@ const App: React.FC = () => {
                 <div className="space-y-1">
                   <div className="text-sm">
                     <p className="text-black text-xs">Part Number</p>
-                    <p className="font-medium text-black">{line2Data.partNumber}</p>
+                    <p className="font-medium text-black">{lines.line2.status.partNumber}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Part Name</p>
-                    <p className="font-medium text-black">{line2Data.partName}</p>
+                    <p className="font-medium text-black">{lines.line2.status.partName}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Total Quantity / Shift</p>
-                    <p className="font-medium text-black">{line2Data.totalQuantity}</p>
+                    <p className="font-medium text-black">{lines.line2.status.totalQuantity}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Parts / Hour</p>
-                    <p className="font-medium text-black">{line2Data.partsPerHour}</p>
+                    <p className="font-medium text-black">{lines.line2.status.partsPerHour}</p>
                   </div>
                 </div>
               </div>
 
-              <div className={`rounded-lg shadow-sm p-2 ${getScrapRateColor(line2Data.scrapRate)}`}>
+              <div className={`rounded-lg shadow-sm p-2 ${getScrapRateColor(lines.line2.status.scrapRate)}`}>
                 <h2 className="text-sm font-semibold text-black mb-1">Scrap Line 2</h2>
                 <div className="space-y-1">
                   <div className="text-sm">
                     <p className="text-black text-xs">Total Scrap</p>
-                    <p className="font-medium text-black">{line2Data.totalScrap}</p>
+                    <p className="font-medium text-black">{lines.line2.status.totalScrap}</p>
                   </div>
                   <div className="text-sm">
                     <p className="text-black text-xs">Scrap Rate</p>
-                    <p className="font-medium text-black">{line2Data.scrapRate}%</p>
+                    <p className="font-medium text-black">{lines.line2.status.scrapRate}%</p>
                   </div>
                 </div>
               </div>
@@ -229,10 +233,10 @@ const App: React.FC = () => {
 
           <div className="col-span-3 flex flex-col gap-1">
             <div className="bg-white rounded-lg shadow-sm p-1 h-[calc(50%-0.125rem)]">
-              <LineGraph title="Line 1 Production Rate" data={lineData1} color="#3B82F6" />
+              <LineGraph title="Line 1 Production Rate" data={lines.line1.graphData} color="#3B82F6" />
             </div>
             <div className="bg-white rounded-lg shadow-sm p-1 h-[calc(50%-0.125rem)]">
-              <LineGraph title="Line 2 Production Rate" data={lineData2} color="#10B981" />
+              <LineGraph title="Line 2 Production Rate" data={lines.line2.graphData} color="#10B981" />
             </div>
           </div>
 

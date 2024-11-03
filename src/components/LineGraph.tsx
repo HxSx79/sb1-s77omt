@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 interface LineGraphProps {
@@ -28,15 +28,6 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label })
   return null;
 };
 
-const generateTimeRange = () => {
-  const times: string[] = [];
-  for (let hour = 6; hour <= 23; hour++) {
-    times.push(`${hour.toString().padStart(2, '0')}:00:00`);
-    times.push(`${hour.toString().padStart(2, '0')}:30:00`);
-  }
-  return times;
-};
-
 const ShiftLabels: React.FC = () => (
   <div className="flex justify-between px-12 -mt-2 text-sm text-gray-500">
     <div className="flex-1 text-center mr-4">Shift 1</div>
@@ -46,24 +37,34 @@ const ShiftLabels: React.FC = () => (
 );
 
 export const LineGraph: React.FC<LineGraphProps> = ({ title, data, color }) => {
-  const timeRange = generateTimeRange();
-  
-  const completeData = timeRange.map(time => {
-    const [hours, minutes] = time.split(':');
-    const timeValue = new Date(`1970-01-01T${time}`).getTime();
-    
-    const existingPoint = data.find(d => {
-      const [dHours, dMinutes] = d.time.split(':');
-      const dTime = new Date(`1970-01-01T${d.time}`).getTime();
-      const timeDiff = Math.abs(timeValue - dTime);
-      return timeDiff <= 15 * 60 * 1000;
-    });
+  const timeRange = useCallback(() => {
+    const times: string[] = [];
+    for (let hour = 6; hour <= 23; hour++) {
+      times.push(`${hour.toString().padStart(2, '0')}:00:00`);
+      times.push(`${hour.toString().padStart(2, '0')}:30:00`);
+    }
+    return times;
+  }, []);
 
-    return {
-      time: `${hours}:${minutes}`,
-      value: existingPoint ? existingPoint.value : null
-    };
-  });
+  const completeData = useMemo(() => 
+    timeRange().map(time => {
+      const [hours, minutes] = time.split(':');
+      const timeValue = new Date(`1970-01-01T${time}`).getTime();
+      
+      const existingPoint = data.find(d => {
+        const [dHours, dMinutes] = d.time.split(':');
+        const dTime = new Date(`1970-01-01T${d.time}`).getTime();
+        const timeDiff = Math.abs(timeValue - dTime);
+        return timeDiff <= 15 * 60 * 1000;
+      });
+
+      return {
+        time: `${hours}:${minutes}`,
+        value: existingPoint ? existingPoint.value : null
+      };
+    }), 
+    [timeRange, data]
+  );
 
   const maxValue = Math.max(...data.filter(d => d.value !== null).map(d => d.value!), 150);
   const yAxisMax = Math.ceil(maxValue / 50) * 50;
